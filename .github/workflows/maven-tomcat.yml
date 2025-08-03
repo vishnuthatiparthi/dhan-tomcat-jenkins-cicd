@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Optional: manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -25,6 +25,14 @@ jobs:
           cd webapp
           mvn clean package
 
+      - name: Undeploy previous version from Tomcat (if exists)
+        env:
+          TOMCAT_URL: http://44.203.181.56:8081
+          TOMCAT_USER: ${{ secrets.TOMCAT_USER }}
+          TOMCAT_PASS: ${{ secrets.TOMCAT_PASS }}
+        run: |
+          curl -v -u "$TOMCAT_USER:$TOMCAT_PASS" "$TOMCAT_URL/manager/text/undeploy?path=/webapp" || true
+
       - name: Deploy WAR to Tomcat
         env:
           TOMCAT_URL: http://44.203.181.56:8081
@@ -37,4 +45,6 @@ jobs:
             exit 1
           fi
           echo "Deploying WAR file: $WAR_FILE to $TOMCAT_URL"
-          curl -v -u "$TOMCAT_USER:$TOMCAT_PASS" --upload-file "$WAR_FILE" "$TOMCAT_URL/manager/text/deploy?path=/test&update=true"
+          curl -v -u "$TOMCAT_USER:$TOMCAT_PASS" \
+            --upload-file "$WAR_FILE" \
+            "$TOMCAT_URL/manager/text/deploy?path=/webapp&update=true"
