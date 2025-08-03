@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:  # Optional: enable manual trigger from GitHub UI
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
+    - name: Checkout code
       uses: actions/checkout@v3
 
     - name: Set up JDK 11
@@ -19,18 +20,23 @@ jobs:
         java-version: '11'
         distribution: 'temurin'
 
-    - name: Clean Project
+    - name: Clean the project
       run: mvn clean
 
     - name: Package WAR
       run: mvn package
 
-    - name: Deploy to Tomcat
+    - name: Deploy WAR to Tomcat
       env:
         TOMCAT_URL: http://44.203.181.56:8081
         TOMCAT_USER: ${{ secrets.TOMCAT_USER }}
         TOMCAT_PASS: ${{ secrets.TOMCAT_PASS }}
       run: |
         WAR_FILE=$(find target -name "*.war" | head -n 1)
+        if [ -z "$WAR_FILE" ]; then
+          echo "Error: WAR file not found in target directory"
+          exit 1
+        fi
         echo "Deploying $WAR_FILE to $TOMCAT_URL"
-        curl -u "$TOMCAT_USER:$TOMCAT_PASS" --upload-file "$WAR_FILE" "$TOMCAT_URL/manager/text/deploy?path=/test&update=true"
+        # Deploy the WAR via Tomcat manager REST API with update
+        curl -v -u "$TOMCAT_USER:$TOMCAT_PASS" --upload-file "$WAR_FILE" "$TOMCAT_URL/manager/text/deploy?path=/test&update=true"
